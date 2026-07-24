@@ -14,6 +14,12 @@ repo, `acteble/melos_apps`, is private, so it can't serve anonymous
 downloads). Install is free; some in-app features require a purchase,
 handled entirely inside the app.
 
+## Android (internal testing)
+
+Join the internal test track to install the Android build:
+
+https://play.google.com/apps/internaltest/4701697952586068226
+
 `Casks/acteble.rb`'s `version`/`sha256`/`url` are bumped automatically by
 `melos_apps`' `scripts/release_homebrew.sh` after each macOS publish —
 don't hand-edit them.
