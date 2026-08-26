@@ -1,6 +1,6 @@
 cask "acteble" do
   version "0.0.0"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000" # bumped by scripts/release_homebrew.sh (melos_apps)
+  sha256 "0dcc0fa6d0b5fa32c63d621cdfb0ab2f50d0b5c6f94ffc80bcdd7469c21331ef" # bumped by scripts/release_homebrew.sh (melos_apps)
 
   url "https://github.com/acteble/homebrew-acteble/releases/download/v#{version}/Acteble-#{version}.dmg"
   name "Acteble"
