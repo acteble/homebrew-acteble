@@ -1,4 +1,4 @@
-class Acteble < Formula
+class ActebleLinux < Formula
   # Prebuilt Linux x86_64 bundle (the `flutter build linux` output), published
   # to this tap's GitHub Releases alongside the macOS .dmg under the same
   # v<version> tag. Casks are macOS-only, so Linux ships as a formula that
