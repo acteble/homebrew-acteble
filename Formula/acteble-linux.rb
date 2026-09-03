@@ -9,7 +9,7 @@ class ActebleLinux < Formula
   homepage "https://acteble.com"
   url "https://github.com/acteble/homebrew-acteble/releases/download/v0.0.0/acteble-linux-x86_64.tar.gz"
   version "0.0.0"
-  sha256 "96e17ede82badeaeabe539d212dbf0f7842daa7e067b7b7f52882358f59a1bec" # release-bumped
+  sha256 "6cdf685745525c7abf177b77c1611205332f678bc96fab9b85259890345bb37d" # release-bumped
   license :cannot_represent
 
   depends_on "gtk+3"
