@@ -1,6 +1,6 @@
 cask "acteble" do
   version "0.0.0"
-  sha256 "0dcc0fa6d0b5fa32c63d621cdfb0ab2f50d0b5c6f94ffc80bcdd7469c21331ef" # release-bumped
+  sha256 "33e44a81814f449424ef2ed1f657b83c3adb758b7d76b6b7eaa4743e141906cd" # release-bumped
 
   url "https://github.com/acteble/homebrew-acteble/releases/download/v#{version}/Acteble-#{version}.dmg"
   name "Acteble"
