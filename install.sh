@@ -8,7 +8,7 @@ die() {
 
 usage() {
   cat << EOF
-Usage: $(basename "$0") [--help] [--dry-run]
+Usage: install.sh [--help] [--dry-run]
 
 Options:
   --help, -h    Print this help message and exit.
