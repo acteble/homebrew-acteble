@@ -2,6 +2,41 @@
 
 Homebrew tap for [Acteble](https://acteble.com)'s desktop client (macOS and Linux).
 
+## Quick install (curl | sh)
+
+No Homebrew required. Installs to `~/.local/bin` (Linux) with no `sudo`:
+
+```
+curl -fsSL https://raw.githubusercontent.com/acteble/homebrew-acteble/main/install.sh | sh
+```
+
+- **Linux (x86_64):** downloads the release bundle, extracts it to
+  `~/.local/share/acteble`, and symlinks `~/.local/bin/acteble`. If
+  `~/.local/bin` is not on your `PATH` the installer prints the line to add.
+- **macOS:** delegates to `brew install --cask acteble/acteble/acteble` when
+  Homebrew is present, otherwise installs the `.dmg` to `/Applications`.
+
+Pass `--dry-run` to preview the actions without changing anything, or `--help`
+for usage.
+
+## Windows (PowerShell)
+
+> **Status: in preparation.** The Windows `.msix` is built by CI
+> (`.github/workflows/windows-build.yml` in the app repo) and published to this
+> tap's release; that build is gated on enabling GitHub Actions for the org.
+> Once the first `.msix` is published, install with:
+>
+> ```powershell
+> irm https://raw.githubusercontent.com/acteble/homebrew-acteble/main/install.ps1 | iex
+> ```
+>
+> The `.msix` is **test-signed** (sideloadable), so Windows requires either
+> Developer Mode enabled or the bundled test certificate trusted before it will
+> install. `install.ps1` handles the download + `Add-AppxPackage` and explains
+> the certificate step. Store distribution stays a separate Partner Center flow.
+
+## Homebrew
+
 macOS (Cask):
 
 ```
