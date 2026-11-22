@@ -1,0 +1,7 @@
+{
+  "name": "acteble",
+  "owner": { "name": "Acteble" },
+  "plugins": [
+    { "name": "acteble-install", "source": "./", "description": "Install Acteble from its stable or beta channel." }
+  ]
+}

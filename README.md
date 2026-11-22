@@ -49,7 +49,7 @@ as a formula):
 
 ```
 brew tap acteble/acteble
-brew install acteble
+brew install acteble-linux
 ```
 
 The app's source lives in a private repo — this public tap only ships the
@@ -67,5 +67,13 @@ https://play.google.com/apps/internaltest/4701697952586068226
 
 `Casks/acteble.rb`'s `version`/`sha256`/`url` are bumped automatically by
 `melos_apps`' `scripts/release_homebrew.sh` after each macOS publish, and
-`Formula/acteble.rb`'s by `scripts/release_homebrew_linux.sh` after each
+`Formula/acteble-linux.rb`'s by `scripts/release_homebrew_linux.sh` after each
 Linux publish — don't hand-edit either.
+
+## Use it from an agent
+
+`skills/` holds one skill per release channel, in the Agent Skills format that
+Claude Code, Codex and other agents read: `acteble` (stable, every platform) and
+`acteble-beta` (macOS Cask `acteble@beta`). Claude Code:
+`/plugin marketplace add acteble/homebrew-acteble`, then
+`/plugin install acteble-install@acteble`.

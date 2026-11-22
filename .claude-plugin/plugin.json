@@ -1,0 +1,6 @@
+{
+  "name": "acteble-install",
+  "description": "One skill per Acteble release channel: stable (acteble) and beta (acteble-beta).",
+  "version": "0.1.0",
+  "skills": "./skills"
+}
