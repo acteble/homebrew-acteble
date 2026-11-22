@@ -21,6 +21,89 @@ Installs the acteble CLI to ~/.local/bin (no sudo).
 EOF
 }
 
+api_url=https://api.github.com/repos/acteble/homebrew-acteble/releases/latest
+download_url=https://github.com/acteble/homebrew-acteble/releases/download
+temp_dir=
+mount_point=
+
+# cleanup: runs on exit; a mounted image that cannot be detached is said.
+cleanup() {
+  if [ -n "$mount_point" ]; then
+    hdiutil detach "$mount_point" > /dev/null || echo "install.sh: warning: could not detach $mount_point" >&2
+  fi
+  if [ -n "$temp_dir" ]; then
+    rm -rf "$temp_dir"
+  fi
+}
+
+# latest_tag: prints the tag of the latest release; dies when it cannot be
+# found. It never falls back to a version it has not seen published.
+latest_tag() {
+  json=$(curl -fsSL "$api_url") || die "cannot fetch the latest release from $api_url"
+  tag=$(printf '%s\n' "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
+  [ -n "$tag" ] || die "no tag_name in the latest release"
+  printf '%s\n' "$tag"
+}
+
+# fetch <tag> <asset>: downloads a release asset into the temp directory.
+fetch() {
+  curl -fsSL "$download_url/$1/$2" -o "$temp_dir/$2" || die "download of $2 ($1) failed"
+}
+
+prepare() {
+  command -v curl > /dev/null 2>&1 || die "curl is not installed"
+  temp_dir=$(mktemp -d) || die "cannot create a temporary directory"
+  trap cleanup EXIT
+}
+
+install_linux() {
+  [ "$arch" = x86_64 ] || die "unsupported architecture: $arch (only x86_64 Linux is supported)"
+  asset=acteble-linux-x86_64.tar.gz
+  target="${HOME}/.local/bin/acteble"
+  if [ "$dry_run" = true ]; then
+    echo "[dry-run] Would download $asset"
+    echo "[dry-run] Would extract and symlink to $target"
+    exit 0
+  fi
+  prepare
+  tag=$(latest_tag)
+  fetch "$tag" "$asset"
+  mkdir -p "$HOME/.local/share/acteble" "$HOME/.local/bin"
+  tar -xzf "$temp_dir/$asset" -C "$HOME/.local/share/acteble" || die "cannot extract $asset"
+  ln -sf "$HOME/.local/share/acteble/acteble" "$target"
+  echo "Installation complete. You may need to add ~/.local/bin to your PATH."
+}
+
+# install_dmg: the .dmg is named after the release tag (Acteble-<version>.dmg),
+# as the Cask's url is; the app is copied from the mount point hdiutil reports.
+install_dmg() {
+  if [ "$dry_run" = true ]; then
+    echo "[dry-run] Would download the latest Acteble-<version>.dmg"
+    echo "[dry-run] Would install Acteble.app to /Applications"
+    exit 0
+  fi
+  prepare
+  tag=$(latest_tag)
+  asset="Acteble-${tag#v}.dmg"
+  fetch "$tag" "$asset"
+  attached=$(hdiutil attach -nobrowse -readonly "$temp_dir/$asset") || die "cannot mount $asset"
+  mount_point=$(printf '%s\n' "$attached" | awk -F'\t' '/\/Volumes\// { path = $NF } END { print path }')
+  [ -n "$mount_point" ] || die "no mount point reported for $asset"
+  [ -d "$mount_point/Acteble.app" ] || die "Acteble.app not found in $asset"
+  ditto "$mount_point/Acteble.app" /Applications/Acteble.app || die "cannot copy Acteble.app to /Applications"
+  echo "Installation complete: /Applications/Acteble.app"
+}
+
+install_macos() {
+  if ! command -v brew > /dev/null 2>&1; then
+    install_dmg
+  elif [ "$dry_run" = true ]; then
+    echo "[dry-run] Would run: brew install --cask acteble/acteble/acteble"
+  else
+    brew install --cask acteble/acteble/acteble
+  fi
+}
+
 os=$(uname -s)
 arch=$(uname -m)
 
@@ -39,92 +122,8 @@ if [ -n "${1:-}" ]; then
   die "Unknown option: $1"
 fi
 
-if [ "$os" = "Linux" ]; then
-  if [ "$arch" != "x86_64" ]; then
-    die "unsupported architecture: $arch (only x86_64 Linux is supported)"
-  fi
-
-  asset="acteble-linux-x86_64.tar.gz"
-  target="${HOME}/.local/bin/acteble"
-
-  latest_release() {
-    curl -fsSL https://api.github.com/repos/acteble/homebrew-acteble/releases/latest
-  }
-
-  download_asset() {
-    tag=$(latest_release | sed -n 's/.*"tag_name":"\([^"]*\)".*/\1/p')
-    if [ -z "$tag" ]; then
-      echo "WARNING: Failed to fetch latest release. Falling back to v0.0.0." >&2
-      tag="v0.0.0"
-    fi
-    url="https://github.com/acteble/homebrew-acteble/releases/download/$tag/$asset"
-    curl -fsSL "$url" -o "$temp_dir/$asset"
-  }
-
-  extract_and_symlink() {
-    mkdir -p "$HOME/.local/share/acteble"
-    tar -xzf "$temp_dir/$asset" -C "$HOME/.local/share/acteble"
-    ln -sf "$HOME/.local/share/acteble/acteble" "$target"
-  }
-
-  if [ "$dry_run" = true ]; then
-    echo "[dry-run] Would download $asset"
-    echo "[dry-run] Would extract and symlink to $target"
-    exit 0
-  fi
-
-  temp_dir=$(mktemp -d)
-  trap 'rm -rf "$temp_dir"' EXIT
-
-  if ! command -v curl > /dev/null 2>&1; then
-    die "curl is not installed"
-  fi
-
-  download_asset
-  extract_and_symlink
-
-  echo "Installation complete. You may need to add ~/.local/bin to your PATH."
-
-elif [ "$os" = "Darwin" ]; then
-  if command -v brew > /dev/null 2>&1; then
-    if [ "$dry_run" = true ]; then
-      echo "[dry-run] Would run: brew install --cask acteble/acteble/acteble"
-      exit 0
-    else
-      brew install --cask acteble/acteble/acteble
-    fi
-  else
-    asset="Acteble-0.0.0.dmg"
-    latest_release() {
-      curl -fsSL https://api.github.com/repos/acteble/homebrew-acteble/releases/latest
-    }
-
-    download_asset() {
-      tag=$(latest_release | sed -n 's/.*"tag_name":"\([^"]*\)".*/\1/p')
-      if [ -z "$tag" ]; then
-        echo "WARNING: Failed to fetch latest release. Falling back to v0.0.0." >&2
-        tag="v0.0.0"
-      fi
-      url="https://github.com/acteble/homebrew-acteble/releases/download/$tag/$asset"
-      curl -fsSL "$url" -o "$temp_dir/$asset"
-    }
-
-    install_dmg() {
-      hdiutil attach "$temp_dir/$asset"
-      cp /Volumes/Acteble/Acteble.app /Applications
-      hdiutil detach
-    }
-
-    if [ "$dry_run" = true ]; then
-      echo "[dry-run] Would download $asset"
-      echo "[dry-run] Would install Acteble.app to /Applications"
-      exit 0
-    else
-      download_asset
-      install_dmg
-    fi
-  fi
-
-else
-  die "unsupported operating system: $os"
-fi
+case "$os" in
+  Linux) install_linux ;;
+  Darwin) install_macos ;;
+  *) die "unsupported operating system: $os" ;;
+esac
