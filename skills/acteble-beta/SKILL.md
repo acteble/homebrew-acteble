@@ -9,7 +9,7 @@ Beta exists on macOS only, as the Cask `acteble@beta`. Linux (Formula, install s
 
 ## What a beta is
 
-`melos_apps/scripts/release_homebrew.sh --channel beta` publishes the build of the current branch as a GitHub **prerelease** `v<version>-beta.<build>` (build = git commit count, so each beta is newer than the last) and bumps `Casks/acteble@beta.rb`. It creates that Cask from the stable one on first use and never touches the stable Cask. As of 2026-11-22 the tap has only the stable Cask and the release `v0.0.0`: no beta has been published yet.
+`actrepo deploy test homebrew` (with `BREW_DMG`, the built `.dmg`, and `BREW_TAP_DIR`, a checkout of this tap; it pushes the tap only with `BREW_PUSH`) publishes the build of the current branch as a GitHub **prerelease** `v<version>-beta.<build>` (build = git commit count, so each beta is newer than the last) and bumps `Casks/acteble@beta.rb`. `melos_apps/scripts/release_homebrew.sh --channel beta` still does the same until it is removed. The Cask is created from the stable one on first use and never touches the stable Cask. As of 2026-11-22 the tap has only the stable Cask and the release `v0.0.0`: no beta has been published yet.
 
 ## First: detect what is installed
 
