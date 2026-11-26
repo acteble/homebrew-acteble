@@ -59,6 +59,23 @@ repo, `acteble/melos_apps`, is private, so it can't serve anonymous
 downloads). Install is free; some in-app features require a purchase,
 handled entirely inside the app.
 
+## Beta channel
+
+A beta is a GitHub **prerelease** `v<version>-beta.<build>`; the stable release
+is never replaced by it. Install the newest one:
+
+| Platform | Command |
+|---|---|
+| curl (Linux, macOS) | `curl -fsSL https://raw.githubusercontent.com/acteble/homebrew-acteble/main/install.sh \| sh -s -- --beta` |
+| Windows | `& ([scriptblock]::Create((irm https://raw.githubusercontent.com/acteble/homebrew-acteble/main/install.ps1))) -Beta` |
+| Homebrew, macOS | `brew install --cask acteble/acteble/acteble@beta` |
+| Homebrew, Linux | `brew install acteble/acteble/acteble-linux@beta` |
+
+Both scripts stop with "no beta release is published" when no prerelease
+exists. The beta cask and formula conflict with the stable ones: uninstall one
+before installing the other. The Homebrew beta files appear in this tap with
+the first beta published by `actrepo deploy test`.
+
 ## Android (internal testing)
 
 Join the internal test track to install the Android build:
