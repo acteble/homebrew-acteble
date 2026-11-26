@@ -21,7 +21,11 @@ setup() {
   : > "$LOG"
   # The release JSON as GitHub serves it: pretty-printed, space after the colon.
   printf '{\n  "tag_name": "v1.2.3",\n  "name": "v1.2.3"\n}\n' > "$API"
-  export HOME LOG API MOUNT
+  # The release list as GitHub serves it: newest first, one tag_name and one
+  # prerelease flag per release.
+  API_LIST="$BATS_TEST_TMPDIR/api_list.json"
+  printf '[\n  {\n    "tag_name": "v2.0.0",\n    "draft": false,\n    "prerelease": false\n  },\n  {\n    "tag_name": "v2.1.0-beta.5",\n    "draft": false,\n    "prerelease": true\n  },\n  {\n    "tag_name": "v2.0.0-beta.3",\n    "draft": false,\n    "prerelease": true\n  }\n]\n' > "$API_LIST"
+  export HOME LOG API API_LIST MOUNT
   export PATH="$STUBS:/usr/bin:/bin"
   stub uname << 'STUB'
 #!/bin/sh
@@ -32,6 +36,7 @@ STUB
 echo "curl $*" >> "$LOG"
 [ -z "${FAKE_CURL_FAIL:-}" ] || exit 22
 case "$*" in
+  *api.github.com*releases?per_page*) cat "$API_LIST" ;;
   *api.github.com*) cat "$API" ;;
   *) while [ "$#" -gt 0 ]; do [ "$1" = -o ] && : > "$2"; shift; done ;;
 esac
@@ -193,4 +198,80 @@ STUB
   [ "$status" -eq 0 ]
   grep -q "brew install --cask acteble/acteble/acteble" "$LOG"
   [ "$(grep -c "^curl" "$LOG")" -eq 0 ]
+}
+
+# ---- --beta: the newest GitHub prerelease, never `releases/latest` ----
+
+@test "beta linux: lists the releases, not just the latest one" {
+  run sh "$SCRIPT" --beta
+  [ "$status" -eq 0 ]
+  grep -q "api.github.com/repos/acteble/homebrew-acteble/releases?per_page" "$LOG"
+  ! grep -q "releases/latest" "$LOG"
+}
+
+@test "beta linux: downloads the newest prerelease, skipping a newer stable one" {
+  run sh "$SCRIPT" --beta
+  [ "$status" -eq 0 ]
+  grep -q "releases/download/v2.1.0-beta.5/acteble-linux-x86_64.tar.gz" "$LOG"
+  ! grep -q "v2.0.0/" "$LOG"
+}
+
+@test "beta linux: dies by name when no prerelease is published" {
+  printf '[\n  {\n    "tag_name": "v2.0.0",\n    "prerelease": false\n  }\n]\n' > "$API_LIST"
+  run sh "$SCRIPT" --beta
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no beta release is published"* ]] || return 1
+  ! grep -q "releases/download" "$LOG"
+}
+
+@test "beta linux: a failed listing dies and installs nothing" {
+  FAKE_CURL_FAIL=1 run sh "$SCRIPT" --beta
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"cannot fetch the releases"* ]] || return 1
+  [ ! -e "$HOME/.local/bin/acteble" ]
+}
+
+@test "beta: --dry-run in either order touches nothing and says beta" {
+  run sh "$SCRIPT" --beta --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[dry-run]"*"beta"* ]] || return 1
+  run sh "$SCRIPT" --dry-run --beta
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[dry-run]"*"beta"* ]] || return 1
+  [ ! -s "$LOG" ]
+}
+
+@test "beta macos with brew: installs the acteble@beta cask" {
+  stub brew << 'STUB'
+#!/bin/sh
+echo "brew $*" >> "$LOG"
+STUB
+  FAKE_OS=Darwin run sh "$SCRIPT" --beta
+  [ "$status" -eq 0 ]
+  grep -q "brew install --cask acteble/acteble/acteble@beta" "$LOG"
+}
+
+@test "beta macos without brew: downloads the dmg of the prerelease tag" {
+  FAKE_OS=Darwin run sh "$SCRIPT" --beta
+  [ "$status" -eq 0 ]
+  grep -q "releases/download/v2.1.0-beta.5/Acteble-2.1.0-beta.5.dmg" "$LOG"
+}
+
+@test "an unknown option still dies, beta or not" {
+  run sh "$SCRIPT" --beta --nope
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Unknown option: --nope"* ]] || return 1
+}
+
+@test "stable is unchanged: no flag still reads releases/latest" {
+  run sh "$SCRIPT"
+  [ "$status" -eq 0 ]
+  grep -q "releases/latest" "$LOG"
+  ! grep -q "per_page" "$LOG"
+}
+
+@test "help documents --beta" {
+  run sh "$SCRIPT" --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"--beta"* ]] || return 1
 }

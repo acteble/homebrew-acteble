@@ -8,11 +8,12 @@ die() {
 
 usage() {
   cat << EOF
-Usage: install.sh [--help] [--dry-run]
+Usage: install.sh [--help] [--dry-run] [--beta]
 
 Options:
   --help, -h    Print this help message and exit.
   --dry-run     Resolve + print what WOULD happen but do not download/modify anything.
+  --beta        Install the newest beta (a GitHub prerelease) instead of the stable release.
 
 This script installs the acteble app. To install, run:
 
@@ -22,6 +23,7 @@ EOF
 }
 
 api_url=https://api.github.com/repos/acteble/homebrew-acteble/releases/latest
+list_url='https://api.github.com/repos/acteble/homebrew-acteble/releases?per_page=30'
 download_url=https://github.com/acteble/homebrew-acteble/releases/download
 temp_dir=
 mount_point=
@@ -45,6 +47,23 @@ latest_tag() {
   printf '%s\n' "$tag"
 }
 
+# beta_tag: prints the tag of the newest prerelease (GitHub lists newest first;
+# each release carries one tag_name, then its prerelease flag); dies when none
+# is published.
+beta_tag() {
+  json=$(curl -fsSL "$list_url") || die "cannot fetch the releases from $list_url"
+  tag=$(printf '%s\n' "$json" | awk '
+    /"tag_name"/ { t = $0; sub(/.*"tag_name"[[:space:]]*:[[:space:]]*"/, "", t); sub(/".*/, "", t) }
+    /"prerelease"[[:space:]]*:[[:space:]]*true/ { print t; exit }')
+  [ -n "$tag" ] || die "no beta release is published"
+  printf '%s\n' "$tag"
+}
+
+# release_tag: the tag to install, stable or beta.
+release_tag() {
+  if [ "$beta" = true ]; then beta_tag; else latest_tag; fi
+}
+
 # fetch <tag> <asset>: downloads a release asset into the temp directory.
 fetch() {
   curl -fsSL "$download_url/$1/$2" -o "$temp_dir/$2" || die "download of $2 ($1) failed"
@@ -61,12 +80,12 @@ install_linux() {
   asset=acteble-linux-x86_64.tar.gz
   target="${HOME}/.local/bin/acteble"
   if [ "$dry_run" = true ]; then
-    echo "[dry-run] Would download $asset"
+    echo "[dry-run] Would download $asset ($channel)"
     echo "[dry-run] Would extract and symlink to $target"
     exit 0
   fi
   prepare
-  tag=$(latest_tag)
+  tag=$(release_tag)
   fetch "$tag" "$asset"
   mkdir -p "$HOME/.local/share/acteble" "$HOME/.local/bin"
   tar -xzf "$temp_dir/$asset" -C "$HOME/.local/share/acteble" || die "cannot extract $asset"
@@ -78,12 +97,12 @@ install_linux() {
 # as the Cask's url is; the app is copied from the mount point hdiutil reports.
 install_dmg() {
   if [ "$dry_run" = true ]; then
-    echo "[dry-run] Would download the latest Acteble-<version>.dmg"
+    echo "[dry-run] Would download the latest Acteble-<version>.dmg ($channel)"
     echo "[dry-run] Would install Acteble.app to /Applications"
     exit 0
   fi
   prepare
-  tag=$(latest_tag)
+  tag=$(release_tag)
   asset="Acteble-${tag#v}.dmg"
   fetch "$tag" "$asset"
   attached=$(hdiutil attach -nobrowse -readonly "$temp_dir/$asset") || die "cannot mount $asset"
@@ -98,29 +117,35 @@ install_macos() {
   if ! command -v brew > /dev/null 2>&1; then
     install_dmg
   elif [ "$dry_run" = true ]; then
-    echo "[dry-run] Would run: brew install --cask acteble/acteble/acteble"
+    echo "[dry-run] Would run: brew install --cask acteble/acteble/$cask ($channel)"
   else
-    brew install --cask acteble/acteble/acteble
+    brew install --cask "acteble/acteble/$cask"
   fi
 }
 
 os=$(uname -s)
 arch=$(uname -m)
 
-if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
-  usage
-  exit 0
-fi
-
 dry_run=false
-if [ "${1:-}" = "--dry-run" ]; then
-  dry_run=true
+beta=false
+channel=stable
+cask=acteble
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --help | -h)
+      usage
+      exit 0
+      ;;
+    --dry-run) dry_run=true ;;
+    --beta)
+      beta=true
+      channel=beta
+      cask=acteble@beta
+      ;;
+    *) die "Unknown option: $1" ;;
+  esac
   shift
-fi
-
-if [ -n "${1:-}" ]; then
-  die "Unknown option: $1"
-fi
+done
 
 case "$os" in
   Linux) install_linux ;;
