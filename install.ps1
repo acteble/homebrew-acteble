@@ -2,18 +2,20 @@
 [CmdletBinding()]
 param(
     [switch]$Help,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$Beta
 )
 
 $ErrorActionPreference = 'Stop'
 
 function Get-ActebleUsage {
     @"
-Usage: install.ps1 [-Help] [-DryRun]
+Usage: install.ps1 [-Help] [-DryRun] [-Beta]
 
 Options:
   -Help       Print this help message and exit.
   -DryRun     Resolve + print what WOULD happen but do not download or install.
+  -Beta       Install the newest beta (a GitHub prerelease) instead of the stable release.
 
 Installs the acteble Windows app from the public tap release:
 
@@ -24,14 +26,25 @@ or the bundled test certificate trusted before it will install.
 "@
 }
 
+# Pure: GitHub lists releases newest first.
+function Select-ActebleRelease {
+    param($Releases, [switch]$Beta)
+    $pick = @($Releases) | Where-Object { [bool]$_.prerelease -eq [bool]$Beta } | Select-Object -First 1
+    if (-not $pick) {
+        throw $(if ($Beta) { 'no beta release is published' } else { 'no stable release is published' })
+    }
+    $pick
+}
+
 function Invoke-ActebleInstall {
     [CmdletBinding()]
-    param([switch]$DryRun)
+    param([switch]$DryRun, [switch]$Beta)
 
-    $release = Invoke-RestMethod 'https://api.github.com/repos/acteble/homebrew-acteble/releases/latest'
+    $list = Invoke-RestMethod 'https://api.github.com/repos/acteble/homebrew-acteble/releases?per_page=30'
+    $release = Select-ActebleRelease -Releases $list -Beta:$Beta
     $msix = $release.assets | Where-Object { $_.name -like '*.msix' } | Select-Object -First 1
     if (-not $msix) {
-        throw 'No .msix asset found on the latest acteble/homebrew-acteble release.'
+        throw 'No .msix asset found on the selected acteble/homebrew-acteble release.'
     }
     $asset = $msix.name
     $target = Join-Path $env:TEMP $asset
@@ -59,6 +72,6 @@ if ($MyInvocation.InvocationName -ne '.') {
     if ($Help) {
         Get-ActebleUsage
     } else {
-        Invoke-ActebleInstall -DryRun:$DryRun
+        Invoke-ActebleInstall -DryRun:$DryRun -Beta:$Beta
     }
 }
